@@ -67,7 +67,24 @@
 }
 
 @media (max-width: 768px) {
+    .container {
+        padding: 0 1rem;
+    }
+
+    .logo span {
+        font-size: 1.2rem;
+    }
+
     .links {
+        gap: 1rem;
+    }
+
+    .links a:not(.adminBtn) {
         display: none;
+    }
+
+    .adminBtn {
+        padding: 6px 12px;
+        font-size: 0.8rem;
     }
 }

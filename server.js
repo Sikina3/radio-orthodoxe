@@ -23,16 +23,24 @@ app.prepare().then(() => {
   let connectedUsers = 0;
   let adminSocketId = null;
   let streamHeader = null;
+  let currentShowTitle = "Radio Orthodoxe";
+  let schedule = [
+    { time: "08:00", title: "Matines & Prières du Matin", host: "Père Jean" },
+    { time: "12:00", title: "Chants Liturgiques", host: "Chœur de la Cathédrale" },
+    { time: "18:00", title: "Vêpres de la Paix", host: "Père Marc" },
+    { time: "21:00", title: "Méditation Nocturne", host: "Sœur Marie" },
+  ];
 
   io.on("connection", (socket) => {
     connectedUsers++;
     console.log("Client connected:", socket.id, "Total:", connectedUsers);
     
-    // Envoyer le nombre d'utilisateurs à tout le monde
+    // Envoyer toutes les infos initiales
     io.emit("user-count", connectedUsers);
-
-    // Envoyer le statut live et le header si existant
     socket.emit("live-status", isLive);
+    socket.emit("current-show", currentShowTitle);
+    socket.emit("update-schedule", schedule);
+
     if (isLive && streamHeader) {
       socket.emit("audio-stream", streamHeader);
     }
@@ -42,17 +50,29 @@ app.prepare().then(() => {
       if (!isLive) {
         isLive = true;
         adminSocketId = socket.id;
-        streamHeader = data; // Stocker le premier paquet (contient les headers WebM)
+        streamHeader = data;
         io.emit("live-status", true);
       }
       socket.broadcast.emit("audio-stream", data);
+    });
+
+    socket.on("start-stream", (title) => {
+      currentShowTitle = title || "La Divine Liturgie";
+      io.emit("current-show", currentShowTitle);
     });
 
     socket.on("stop-stream", () => {
       isLive = false;
       adminSocketId = null;
       streamHeader = null;
+      currentShowTitle = "Radio Orthodoxe";
       io.emit("live-status", false);
+      io.emit("current-show", currentShowTitle);
+    });
+
+    socket.on("update-schedule", (newSchedule) => {
+      schedule = newSchedule;
+      io.emit("update-schedule", schedule);
     });
 
     socket.on("send-chat-message", (msg) => {
@@ -61,14 +81,15 @@ app.prepare().then(() => {
 
     socket.on("disconnect", () => {
       connectedUsers--;
-      console.log("Client disconnected:", socket.id, "Total:", connectedUsers);
       io.emit("user-count", connectedUsers);
       
-      // Si l'admin se déconnecte, on arrête le live
       if (socket.id === adminSocketId) {
         isLive = false;
         adminSocketId = null;
+        streamHeader = null;
+        currentShowTitle = "Radio Orthodoxe";
         io.emit("live-status", false);
+        io.emit("current-show", currentShowTitle);
       }
     });
   });

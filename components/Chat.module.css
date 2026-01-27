@@ -118,11 +118,23 @@
     transform: scale(1.05);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1100px) {
 
     .chatContainer,
     .joinContainer {
         max-width: 100%;
-        height: 400px;
+        height: 450px;
+    }
+}
+
+@media (max-width: 768px) {
+
+    .chatContainer,
+    .joinContainer {
+        height: 350px;
+    }
+
+    .messages {
+        padding: 1rem;
     }
 }

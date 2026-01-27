@@ -7,7 +7,7 @@ import { io } from "socket.io-client";
 
 let socket;
 
-export default function RadioPlayer() {
+export default function RadioPlayer({ currentShow }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLive, setIsLive] = useState(false);
   const [volume, setVolume] = useState(0.8);
@@ -24,12 +24,15 @@ export default function RadioPlayer() {
       setIsLive(status);
       if (!status) {
         setIsPlaying(false);
+        if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current.src = "";
+        }
         queueRef.current = [];
       }
     });
 
     socket.on("audio-stream", async (data) => {
-      // Convertir en ArrayBuffer si nécessaire
       const arrayBuffer = data instanceof Blob ? await data.arrayBuffer() : data;
       
       if (isPlaying && sourceBufferRef.current && !sourceBufferRef.current.updating) {
@@ -55,12 +58,21 @@ export default function RadioPlayer() {
   }, [volume, isMuted]);
 
   const startStreaming = () => {
+    if (!window.MediaSource) {
+      alert("Votre navigateur ne supporte pas le streaming en direct.");
+      return;
+    }
     const mediaSource = new MediaSource();
     mediaSourceRef.current = mediaSource;
     audioRef.current.src = URL.createObjectURL(mediaSource);
 
     mediaSource.addEventListener('sourceopen', () => {
-      const sourceBuffer = mediaSource.addSourceBuffer('audio/webm; codecs=opus');
+      const mimeType = 'audio/webm; codecs=opus';
+      if (!MediaSource.isTypeSupported(mimeType)) {
+        console.error("MIME type not supported");
+        return;
+      }
+      const sourceBuffer = mediaSource.addSourceBuffer(mimeType);
       sourceBufferRef.current = sourceBuffer;
 
       sourceBuffer.addEventListener('updateend', () => {
@@ -73,8 +85,13 @@ export default function RadioPlayer() {
 
   const togglePlay = () => {
     if (!isPlaying) {
-      startStreaming();
-      audioRef.current.play();
+      if (isLive) {
+        startStreaming();
+        audioRef.current.play().catch(e => console.error("Playback error:", e));
+      } else {
+        alert("La radio est actuellement hors ligne.");
+        return;
+      }
     } else {
       audioRef.current.pause();
     }
@@ -93,7 +110,7 @@ export default function RadioPlayer() {
           <div className={isLive ? "live-dot" : styles.offlineDot}></div>
           <span>{isLive ? "En Direct" : "Hors Ligne"}</span>
         </div>
-        <h3 className={styles.title}>{isLive ? "La Divine Liturgie" : "Radio Orthodoxe"}</h3>
+        <h3 className={styles.title}>{isLive ? currentShow : "Radio Orthodoxe"}</h3>
         <p className={styles.subtitle}>{isLive ? "En direct de la Cathédrale" : "La Voix de la Foi"}</p>
       </div>
 

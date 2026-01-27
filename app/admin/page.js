@@ -13,6 +13,18 @@ export default function AdminPage() {
   const [isMuted, setIsMuted] = useState(false);
   const [stream, setStream] = useState(null);
   const [audienceCount, setAudienceCount] = useState(0);
+  const [showTitle, setShowTitle] = useState("La Divine Liturgie");
+  const [schedule, setSchedule] = useState([]);
+  const [newScheduleItem, setNewScheduleItem] = useState({ time: "", title: "", host: "" });
+  const [showLibrary, setShowLibrary] = useState(false);
+  const [libraryFiles, setLibraryFiles] = useState([
+    { name: "Chant Byzantin 1.mp3", duration: "05:20" },
+    { name: "Prière du Matin.mp3", duration: "12:45" },
+    { name: "Cloches de la Cathédrale.wav", duration: "01:15" },
+  ]);
+  const [audioDevices, setAudioDevices] = useState([]);
+  const [selectedDevice, setSelectedDevice] = useState("");
+  
   const mediaRecorderRef = useRef(null);
   const router = useRouter();
 
@@ -28,6 +40,23 @@ export default function AdminPage() {
     socket.on("user-count", (count) => {
       setAudienceCount(count);
     });
+
+    socket.on("update-schedule", (newSchedule) => {
+      setSchedule(newSchedule);
+    });
+
+    // Charger les périphériques audio
+    const getDevices = async () => {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const audioInputs = devices.filter(device => device.kind === 'audioinput');
+        setAudioDevices(audioInputs);
+        if (audioInputs.length > 0) setSelectedDevice(audioInputs[0].deviceId);
+      } catch (err) {
+        console.error("Error listing devices:", err);
+      }
+    };
+    getDevices();
 
     return () => {
       if (socket) socket.disconnect();
@@ -45,7 +74,10 @@ export default function AdminPage() {
   const toggleLive = async () => {
     if (!isLive) {
       try {
-        const audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const constraints = {
+          audio: selectedDevice ? { deviceId: { exact: selectedDevice } } : true
+        };
+        const audioStream = await navigator.mediaDevices.getUserMedia(constraints);
         setStream(audioStream);
         setIsLive(true);
         
@@ -62,10 +94,11 @@ export default function AdminPage() {
           }
         };
         
-        mediaRecorder.start(250); // Send chunks every 250ms
+        mediaRecorder.start(250);
+        if (socket) socket.emit("start-stream", showTitle);
       } catch (err) {
         console.error("Error accessing microphone:", err);
-        alert("Impossible d'accéder au microphone.");
+        alert("Impossible d'accéder au microphone sélectionné.");
       }
     } else {
       if (stream) {
@@ -74,6 +107,21 @@ export default function AdminPage() {
       setIsLive(false);
       if (socket) socket.emit("stop-stream");
     }
+  };
+
+  const updateSchedule = () => {
+    if (newScheduleItem.time && newScheduleItem.title) {
+      const updated = [...schedule, newScheduleItem].sort((a, b) => a.time.localeCompare(b.time));
+      setSchedule(updated);
+      if (socket) socket.emit("update-schedule", updated);
+      setNewScheduleItem({ time: "", title: "", host: "" });
+    }
+  };
+
+  const removeScheduleItem = (index) => {
+    const updated = schedule.filter((_, i) => i !== index);
+    setSchedule(updated);
+    if (socket) socket.emit("update-schedule", updated);
   };
 
   const handleLogout = () => {
@@ -108,6 +156,18 @@ export default function AdminPage() {
               </div>
             </div>
 
+            <div className={styles.liveSettings}>
+              <label>Nom de l'émission :</label>
+              <input 
+                type="text" 
+                value={showTitle} 
+                onChange={(e) => setShowTitle(e.target.value)}
+                placeholder="Ex: La Divine Liturgie"
+                disabled={isLive}
+                className={styles.adminInput}
+              />
+            </div>
+
             <div className={styles.controls}>
               <button 
                 className={`${styles.liveBtn} ${isLive ? styles.stopBtn : styles.startBtn}`}
@@ -134,10 +194,24 @@ export default function AdminPage() {
               </div>
               <div>
                 <h3>Bibliothèque Musicale</h3>
-                <p>Gérez vos fichiers audio</p>
+                <p>{libraryFiles.length} fichiers disponibles</p>
               </div>
             </div>
-            <button className={styles.secondaryBtn}>Ouvrir la Bibliothèque</button>
+            <button className={styles.secondaryBtn} onClick={() => setShowLibrary(!showLibrary)}>
+              {showLibrary ? "Fermer" : "Ouvrir la Bibliothèque"}
+            </button>
+            
+            {showLibrary && (
+              <div className={styles.libraryList}>
+                {libraryFiles.map((file, i) => (
+                  <div key={i} className={styles.libraryItem}>
+                    <span>{file.name}</span>
+                    <span className={file.duration}>{file.duration}</span>
+                  </div>
+                ))}
+                <button className={styles.addFileBtn}>+ Ajouter un fichier</button>
+              </div>
+            )}
           </div>
 
           <div className={`${styles.card} glass`}>
@@ -146,28 +220,81 @@ export default function AdminPage() {
                 <Settings />
               </div>
               <div>
-                <h3>Paramètres</h3>
-                <p>Configuration de la radio</p>
+                <h3>Paramètres Audio</h3>
+                <p>Configuration de la source</p>
               </div>
             </div>
-            <button className={styles.secondaryBtn}>Configurer</button>
+            <div className={styles.audioSettings}>
+              <select 
+                className={styles.adminSelect} 
+                value={selectedDevice}
+                onChange={(e) => setSelectedDevice(e.target.value)}
+                disabled={isLive}
+              >
+                {audioDevices.map((device) => (
+                  <option key={device.deviceId} value={device.deviceId}>
+                    {device.label || `Microphone ${device.deviceId.slice(0, 5)}`}
+                  </option>
+                ))}
+                {audioDevices.length === 0 && <option>Aucun micro détecté</option>}
+              </select>
+              <p className={styles.hint}>Qualité : 128kbps (Opus)</p>
+            </div>
           </div>
         </div>
 
-        <div className={styles.statsSection}>
-          <h2>Statistiques d'Audience</h2>
-          <div className={styles.statsGrid}>
-            <div className={styles.statCard}>
-              <span className={styles.statValue}>{audienceCount}</span>
-              <span className={styles.statLabel}>Auditeurs Actuels</span>
+        <div className={styles.managementGrid}>
+          <div className={`${styles.card} glass`}>
+            <h2>Programmation (À Venir)</h2>
+            <div className={styles.scheduleForm}>
+              <input 
+                type="time" 
+                value={newScheduleItem.time} 
+                onChange={(e) => setNewScheduleItem({...newScheduleItem, time: e.target.value})}
+              />
+              <input 
+                type="text" 
+                placeholder="Titre de l'émission" 
+                value={newScheduleItem.title}
+                onChange={(e) => setNewScheduleItem({...newScheduleItem, title: e.target.value})}
+              />
+              <input 
+                type="text" 
+                placeholder="Animateur" 
+                value={newScheduleItem.host}
+                onChange={(e) => setNewScheduleItem({...newScheduleItem, host: e.target.value})}
+              />
+              <button onClick={updateSchedule} className={styles.addBtn}>Ajouter</button>
             </div>
-            <div className={styles.statCard}>
-              <span className={styles.statValue}>1.2k</span>
-              <span className={styles.statLabel}>Total Aujourd'hui</span>
+            <div className={styles.adminScheduleList}>
+              {schedule.map((item, i) => (
+                <div key={i} className={styles.adminScheduleItem}>
+                  <span className={styles.time}>{item.time}</span>
+                  <div className={styles.info}>
+                    <strong>{item.title}</strong>
+                    <span>{item.host}</span>
+                  </div>
+                  <button onClick={() => removeScheduleItem(i)} className={styles.removeBtn}>×</button>
+                </div>
+              ))}
             </div>
-            <div className={styles.statCard}>
-              <span className={styles.statValue}>4.8/5</span>
-              <span className={styles.statLabel}>Note Moyenne</span>
+          </div>
+
+          <div className={styles.statsSection}>
+            <h2>Statistiques d'Audience</h2>
+            <div className={styles.statsGrid}>
+              <div className={styles.statCard}>
+                <span className={styles.statValue}>{audienceCount}</span>
+                <span className={styles.statLabel}>Auditeurs Actuels</span>
+              </div>
+              <div className={styles.statCard}>
+                <span className={styles.statValue}>1.2k</span>
+                <span className={styles.statLabel}>Total Aujourd'hui</span>
+              </div>
+              <div className={styles.statCard}>
+                <span className={styles.statValue}>4.8/5</span>
+                <span className={styles.statLabel}>Note Moyenne</span>
+              </div>
             </div>
           </div>
         </div>

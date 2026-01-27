@@ -1,10 +1,25 @@
+"use client";
+import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import RadioPlayer from "@/components/RadioPlayer";
 import Chat from "@/components/Chat";
 import styles from "./page.module.css";
+import { io } from "socket.io-client";
 import { Calendar, Clock, Users, Heart } from "lucide-react";
 
 export default function Home() {
+  const [currentShow, setCurrentShow] = useState("Radio Orthodoxe");
+  const [schedule, setSchedule] = useState([]);
+
+  useEffect(() => {
+    const socket = io();
+    
+    socket.on("current-show", (title) => setCurrentShow(title));
+    socket.on("update-schedule", (newSchedule) => setSchedule(newSchedule));
+
+    return () => socket.disconnect();
+  }, []);
+
   return (
     <div className={styles.container}>
       <Navbar />
@@ -24,45 +39,15 @@ export default function Home() {
 
         <section className={styles.playerSection}>
           <div className={styles.playerGrid}>
-            <RadioPlayer />
+            <RadioPlayer currentShow={currentShow} />
             <Chat />
           </div>
         </section>
 
-        <section id="programmes" className={styles.features}>
-          <div className={styles.grid}>
-            <div className={`${styles.card} glass`}>
-              <Calendar className={styles.cardIcon} />
-              <h3>Programmation</h3>
-              <p>Découvrez nos émissions quotidiennes et nos temps de prière en direct.</p>
-            </div>
-            <div className={`${styles.card} glass`}>
-              <Clock className={styles.cardIcon} />
-              <h3>24h/24 & 7j/7</h3>
-              <p>Une présence spirituelle constante pour vous accompagner à chaque instant.</p>
-            </div>
-            <div className={`${styles.card} glass`}>
-              <Users className={styles.cardIcon} />
-              <h3>Communauté</h3>
-              <p>Rejoignez des milliers d'auditeurs partageant la même foi à travers le monde.</p>
-            </div>
-            <div className={`${styles.card} glass`}>
-              <Heart className={styles.cardIcon} />
-              <h3>Soutien</h3>
-              <p>Aidez-nous à diffuser la parole et à maintenir cette radio indépendante.</p>
-            </div>
-          </div>
-        </section>
-
-        <section className={styles.schedule}>
+        <section id="programmes" className={styles.schedule}>
           <h2 className={styles.sectionTitle}>À Venir Aujourd'hui</h2>
           <div className={styles.scheduleList}>
-            {[
-              { time: "08:00", title: "Matines & Prières du Matin", host: "Père Jean" },
-              { time: "12:00", title: "Chants Liturgiques", host: "Chœur de la Cathédrale" },
-              { time: "18:00", title: "Vêpres de la Paix", host: "Père Marc" },
-              { time: "21:00", title: "Méditation Nocturne", host: "Sœur Marie" },
-            ].map((item, i) => (
+            {schedule.map((item, i) => (
               <div key={i} className={styles.scheduleItem}>
                 <span className={styles.time}>{item.time}</span>
                 <div className={styles.scheduleInfo}>

@@ -11,28 +11,30 @@
 }
 
 .hero {
-  height: 60vh;
+  min-height: 70vh;
   display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
   background: linear-gradient(rgba(5, 10, 20, 0.7), rgba(5, 10, 20, 0.7)),
     url('https://images.unsplash.com/photo-1548611635-b6e78bb0d502?q=80&w=2070&auto=format&fit=crop') center/cover;
-  padding: 0 2rem;
+  padding: 100px 2rem 120px;
 }
 
 .heroContent {
   max-width: 800px;
+  width: 100%;
 }
 
 .title {
-  font-size: clamp(3rem, 8vw, 5rem);
+  font-size: clamp(2.5rem, 8vw, 5rem);
   color: var(--accent);
   margin-bottom: 1rem;
+  line-height: 1.1;
 }
 
 .tagline {
-  font-size: 1.5rem;
+  font-size: clamp(1rem, 4vw, 1.5rem);
   font-weight: 300;
   color: var(--text-secondary);
   letter-spacing: 0.1em;
@@ -42,24 +44,25 @@
   width: 60px;
   height: 2px;
   background: var(--accent);
-  margin: 2rem auto;
+  margin: 1.5rem auto;
 }
 
 .description {
-  font-size: 1.1rem;
+  font-size: clamp(0.9rem, 3vw, 1.1rem);
   max-width: 600px;
   margin: 0 auto;
   color: var(--text-secondary);
 }
 
 .playerSection {
-  margin-top: -60px;
-  padding: 0 2rem;
+  margin-top: -80px;
+  padding: 0 1rem;
   position: relative;
   z-index: 10;
-  max-width: 1400px;
+  max-width: 1200px;
   margin-left: auto;
   margin-right: auto;
+  width: 100%;
 }
 
 .playerGrid {
