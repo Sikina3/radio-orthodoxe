@@ -22,7 +22,6 @@ app.prepare().then(() => {
   let isLive = false;
   let connectedUsers = 0;
   let adminSocketId = null;
-  let streamHeader = null;
   let currentShowTitle = "Radio Orthodoxe";
   let schedule = [
     { time: "08:00", title: "Matines & Prières du Matin", host: "Père Jean" },
@@ -41,16 +40,11 @@ app.prepare().then(() => {
     socket.emit("current-show", currentShowTitle);
     socket.emit("update-schedule", schedule);
 
-    if (isLive && streamHeader) {
-      socket.emit("audio-stream", streamHeader);
-    }
-
     // Broadcast audio data from admin to all listeners
     socket.on("audio-data", (data) => {
       if (!isLive) {
         isLive = true;
         adminSocketId = socket.id;
-        streamHeader = data;
         io.emit("live-status", true);
       }
       socket.broadcast.emit("audio-stream", data);

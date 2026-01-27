@@ -12,10 +12,8 @@ export default function RadioPlayer({ currentShow }) {
   const [isLive, setIsLive] = useState(false);
   const [volume, setVolume] = useState(0.8);
   const [isMuted, setIsMuted] = useState(false);
-  const audioRef = useRef(null);
-  const sourceBufferRef = useRef(null);
-  const mediaSourceRef = useRef(null);
-  const queueRef = useRef([]);
+  const audioContextRef = useRef(null);
+  const nextStartTimeRef = useRef(0);
 
   useEffect(() => {
     socket = io();
@@ -24,78 +22,72 @@ export default function RadioPlayer({ currentShow }) {
       setIsLive(status);
       if (!status) {
         setIsPlaying(false);
-        if (audioRef.current) {
-          audioRef.current.pause();
-          audioRef.current.src = "";
+        if (audioContextRef.current) {
+          audioContextRef.current.close();
+          audioContextRef.current = null;
         }
-        queueRef.current = [];
+        nextStartTimeRef.current = 0;
       }
     });
 
     socket.on("audio-stream", async (data) => {
-      const arrayBuffer = data instanceof Blob ? await data.arrayBuffer() : data;
-      
-      if (isPlaying && sourceBufferRef.current && !sourceBufferRef.current.updating) {
-        try {
-          sourceBufferRef.current.appendBuffer(arrayBuffer);
-        } catch (e) {
-          console.error("Error appending buffer:", e);
-        }
-      } else {
-        queueRef.current.push(arrayBuffer);
+      if (!isPlaying || !isLive) return;
+
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 44100 });
+        nextStartTimeRef.current = audioContextRef.current.currentTime + 0.1;
       }
+
+      const audioContext = audioContextRef.current;
+      // data est un ArrayBuffer contenant des Int16
+      const int16Data = new Int16Array(data);
+      const float32Data = new Float32Array(int16Data.length);
+      
+      for (let i = 0; i < int16Data.length; i++) {
+        float32Data[i] = int16Data[i] / 0x7FFF;
+      }
+
+      const audioBuffer = audioContext.createBuffer(1, float32Data.length, 44100);
+      audioBuffer.getChannelData(0).set(float32Data);
+
+      const source = audioContext.createBufferSource();
+      source.buffer = audioBuffer;
+      
+      const gainNode = audioContext.createGain();
+      gainNode.gain.value = isMuted ? 0 : volume;
+      
+      source.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      const startTime = Math.max(nextStartTimeRef.current, audioContext.currentTime);
+      source.start(startTime);
+      nextStartTimeRef.current = startTime + audioBuffer.duration;
     });
 
     return () => {
       if (socket) socket.disconnect();
     };
-  }, [isPlaying]);
+  }, [isPlaying, isLive, volume, isMuted]);
 
   useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = isMuted ? 0 : volume;
-    }
+    // Pas besoin de mettre à jour audioRef.volume ici car on utilise Web Audio API
   }, [volume, isMuted]);
-
-  const startStreaming = () => {
-    if (!window.MediaSource) {
-      alert("Votre navigateur ne supporte pas le streaming en direct.");
-      return;
-    }
-    const mediaSource = new MediaSource();
-    mediaSourceRef.current = mediaSource;
-    audioRef.current.src = URL.createObjectURL(mediaSource);
-
-    mediaSource.addEventListener('sourceopen', () => {
-      const mimeType = 'audio/webm; codecs=opus';
-      if (!MediaSource.isTypeSupported(mimeType)) {
-        console.error("MIME type not supported");
-        return;
-      }
-      const sourceBuffer = mediaSource.addSourceBuffer(mimeType);
-      sourceBufferRef.current = sourceBuffer;
-
-      sourceBuffer.addEventListener('updateend', () => {
-        if (queueRef.current.length > 0 && !sourceBuffer.updating) {
-          sourceBuffer.appendBuffer(queueRef.current.shift());
-        }
-      });
-    });
-  };
 
   const togglePlay = () => {
     if (!isPlaying) {
       if (isLive) {
-        startStreaming();
-        audioRef.current.play().catch(e => console.error("Playback error:", e));
+        setIsPlaying(true);
       } else {
         alert("La radio est actuellement hors ligne.");
-        return;
       }
     } else {
-      audioRef.current.pause();
+      setIsPlaying(false);
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+        audioContextRef.current = null;
+      }
+      nextStartTimeRef.current = 0;
     }
-    setIsPlaying(!isPlaying);
   };
 
   const toggleMute = () => {
@@ -105,7 +97,6 @@ export default function RadioPlayer({ currentShow }) {
   return (
     <div className={`${styles.playerContainer} glass`}>
       <div className={styles.info}>
-        <audio ref={audioRef} hidden />
         <div className={isLive ? "live-indicator" : styles.offlineIndicator}>
           <div className={isLive ? "live-dot" : styles.offlineDot}></div>
           <span>{isLive ? "En Direct" : "Hors Ligne"}</span>

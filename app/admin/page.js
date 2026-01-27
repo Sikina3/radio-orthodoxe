@@ -71,36 +71,66 @@ export default function AdminPage() {
     }
   }, [isMuted, stream]);
 
+  const audioContextRef = useRef(null);
+  const processorRef = useRef(null);
+  const sourceRef = useRef(null);
+
   const toggleLive = async () => {
     if (!isLive) {
       try {
-        const constraints = {
-          audio: selectedDevice ? { deviceId: { exact: selectedDevice } } : true
-        };
-        const audioStream = await navigator.mediaDevices.getUserMedia(constraints);
+        const audioStream = await navigator.mediaDevices.getUserMedia({ 
+          audio: {
+            deviceId: selectedDevice ? { exact: selectedDevice } : undefined,
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          } 
+        });
+        
         setStream(audioStream);
         setIsLive(true);
-        
-        const mimeType = MediaRecorder.isTypeSupported('audio/webm; codecs=opus') 
-          ? 'audio/webm; codecs=opus' 
-          : 'audio/webm';
 
-        const mediaRecorder = new MediaRecorder(audioStream, { mimeType });
-        mediaRecorderRef.current = mediaRecorder;
-        
-        mediaRecorder.ondataavailable = (e) => {
-          if (e.data.size > 0 && socket) {
-            socket.emit('audio-data', e.data);
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 44100 });
+        audioContextRef.current = audioContext;
+
+        const source = audioContext.createMediaStreamSource(audioStream);
+        sourceRef.current = source;
+
+        // ScriptProcessorNode est déprécié mais plus simple à intégrer rapidement que AudioWorklet dans Next.js
+        const processor = audioContext.createScriptProcessor(4096, 1, 1);
+        processorRef.current = processor;
+
+        processor.onaudioprocess = (e) => {
+          if (isMuted) return;
+          
+          const inputData = e.inputBuffer.getChannelData(0);
+          // Convertir Float32 en Int16 pour réduire la bande passante
+          const int16Data = new Int16Array(inputData.length);
+          for (let i = 0; i < inputData.length; i++) {
+            int16Data[i] = Math.max(-1, Math.min(1, inputData[i])) * 0x7FFF;
+          }
+          
+          if (socket) {
+            socket.emit('audio-data', int16Data.buffer);
           }
         };
-        
-        mediaRecorder.start(250);
+
+        source.connect(processor);
+        processor.connect(audioContext.destination);
+
         if (socket) socket.emit("start-stream", showTitle);
       } catch (err) {
         console.error("Error accessing microphone:", err);
         alert("Impossible d'accéder au microphone sélectionné.");
       }
     } else {
+      if (processorRef.current) {
+        processorRef.current.disconnect();
+        processorRef.current.onaudioprocess = null;
+      }
+      if (sourceRef.current) sourceRef.current.disconnect();
+      if (audioContextRef.current) audioContextRef.current.close();
+      
       if (stream) {
         stream.getTracks().forEach(track => track.stop());
       }
