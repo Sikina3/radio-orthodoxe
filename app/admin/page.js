@@ -34,6 +34,14 @@ export default function AdminPage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (stream) {
+      stream.getAudioTracks().forEach(track => {
+        track.enabled = !isMuted;
+      });
+    }
+  }, [isMuted, stream]);
+
   const toggleLive = async () => {
     if (!isLive) {
       try {
@@ -41,9 +49,11 @@ export default function AdminPage() {
         setStream(audioStream);
         setIsLive(true);
         
-        const mediaRecorder = new MediaRecorder(audioStream, {
-          mimeType: 'audio/webm; codecs=opus'
-        });
+        const mimeType = MediaRecorder.isTypeSupported('audio/webm; codecs=opus') 
+          ? 'audio/webm; codecs=opus' 
+          : 'audio/webm';
+
+        const mediaRecorder = new MediaRecorder(audioStream, { mimeType });
         mediaRecorderRef.current = mediaRecorder;
         
         mediaRecorder.ondataavailable = (e) => {

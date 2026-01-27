@@ -22,6 +22,7 @@ app.prepare().then(() => {
   let isLive = false;
   let connectedUsers = 0;
   let adminSocketId = null;
+  let streamHeader = null;
 
   io.on("connection", (socket) => {
     connectedUsers++;
@@ -30,14 +31,18 @@ app.prepare().then(() => {
     // Envoyer le nombre d'utilisateurs à tout le monde
     io.emit("user-count", connectedUsers);
 
-    // Send current live status to new client
+    // Envoyer le statut live et le header si existant
     socket.emit("live-status", isLive);
+    if (isLive && streamHeader) {
+      socket.emit("audio-stream", streamHeader);
+    }
 
     // Broadcast audio data from admin to all listeners
     socket.on("audio-data", (data) => {
       if (!isLive) {
         isLive = true;
         adminSocketId = socket.id;
+        streamHeader = data; // Stocker le premier paquet (contient les headers WebM)
         io.emit("live-status", true);
       }
       socket.broadcast.emit("audio-stream", data);
@@ -46,6 +51,7 @@ app.prepare().then(() => {
     socket.on("stop-stream", () => {
       isLive = false;
       adminSocketId = null;
+      streamHeader = null;
       io.emit("live-status", false);
     });
 

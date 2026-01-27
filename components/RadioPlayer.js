@@ -22,16 +22,24 @@ export default function RadioPlayer() {
     
     socket.on("live-status", (status) => {
       setIsLive(status);
+      if (!status) {
+        setIsPlaying(false);
+        queueRef.current = [];
+      }
     });
 
     socket.on("audio-stream", async (data) => {
-      if (isPlaying && mediaSourceRef.current && mediaSourceRef.current.readyState === 'open') {
-        const arrayBuffer = await data.arrayBuffer();
-        if (!sourceBufferRef.current.updating) {
+      // Convertir en ArrayBuffer si nécessaire
+      const arrayBuffer = data instanceof Blob ? await data.arrayBuffer() : data;
+      
+      if (isPlaying && sourceBufferRef.current && !sourceBufferRef.current.updating) {
+        try {
           sourceBufferRef.current.appendBuffer(arrayBuffer);
-        } else {
-          queueRef.current.push(arrayBuffer);
+        } catch (e) {
+          console.error("Error appending buffer:", e);
         }
+      } else {
+        queueRef.current.push(arrayBuffer);
       }
     });
 
