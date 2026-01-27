@@ -1,0 +1,90 @@
+.container {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-primary);
+    padding: 2rem;
+}
+
+.loginBox {
+    width: 100%;
+    max-width: 400px;
+    padding: 3rem;
+    text-align: center;
+}
+
+.header {
+    margin-bottom: 2.5rem;
+}
+
+.logo {
+    width: 48px;
+    height: 48px;
+    color: var(--accent);
+    margin-bottom: 1rem;
+}
+
+.header h1 {
+    font-size: 1.8rem;
+    margin-bottom: 0.5rem;
+}
+
+.header p {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.inputGroup {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.icon {
+    position: absolute;
+    left: 1rem;
+    width: 18px;
+    height: 18px;
+    color: var(--text-secondary);
+}
+
+.inputGroup input {
+    width: 100%;
+    padding: 12px 12px 12px 3rem;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    color: var(--text-primary);
+    outline: none;
+    transition: var(--transition);
+}
+
+.inputGroup input:focus {
+    border-color: var(--accent);
+}
+
+.error {
+    color: var(--live-red);
+    font-size: 0.85rem;
+}
+
+.submitBtn {
+    padding: 12px;
+    background: var(--accent);
+    color: var(--bg-primary);
+    border-radius: 8px;
+    font-weight: 600;
+    transition: var(--transition);
+}
+
+.submitBtn:hover {
+    background: var(--accent-hover);
+    transform: translateY(-2px);
+}

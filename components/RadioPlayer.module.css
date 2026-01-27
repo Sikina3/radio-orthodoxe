@@ -1,0 +1,130 @@
+.playerContainer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.5rem 2rem;
+    width: 100%;
+    max-width: 1000px;
+    margin: 0 auto;
+    gap: 2rem;
+}
+
+.info {
+    flex: 1;
+}
+
+.offlineIndicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.offlineDot {
+    width: 8px;
+    height: 8px;
+    background-color: var(--text-secondary);
+    border-radius: 50%;
+}
+
+.title {
+    font-size: 1.5rem;
+    margin-top: 0.5rem;
+    color: var(--text-primary);
+}
+
+.subtitle {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.controls {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+}
+
+.playBtn {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--bg-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+    box-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
+}
+
+.playBtn:hover {
+    transform: scale(1.05);
+    background: var(--accent-hover);
+    box-shadow: 0 0 30px rgba(212, 175, 55, 0.5);
+}
+
+.playBtn svg {
+    width: 28px;
+    height: 28px;
+}
+
+.volumeContainer {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.volumeSlider {
+    width: 100px;
+    height: 4px;
+    -webkit-appearance: none;
+    background: var(--bg-tertiary);
+    border-radius: 2px;
+    outline: none;
+}
+
+.volumeSlider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    background: var(--accent);
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.visualizer {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    height: 40px;
+    width: 120px;
+}
+
+.bar {
+    width: 4px;
+    background: var(--accent);
+    border-radius: 2px;
+    opacity: 0.6;
+}
+
+@media (max-width: 768px) {
+    .playerContainer {
+        flex-direction: column;
+        text-align: center;
+        padding: 2rem;
+    }
+
+    .visualizer {
+        display: none;
+    }
+
+    .controls {
+        width: 100%;
+        justify-content: center;
+        flex-direction: column;
+    }
+}

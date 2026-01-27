@@ -1,0 +1,205 @@
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.main {
+  flex: 1;
+  padding-top: 80px;
+  /* Navbar height */
+}
+
+.hero {
+  height: 60vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: linear-gradient(rgba(5, 10, 20, 0.7), rgba(5, 10, 20, 0.7)),
+    url('https://images.unsplash.com/photo-1548611635-b6e78bb0d502?q=80&w=2070&auto=format&fit=crop') center/cover;
+  padding: 0 2rem;
+}
+
+.heroContent {
+  max-width: 800px;
+}
+
+.title {
+  font-size: clamp(3rem, 8vw, 5rem);
+  color: var(--accent);
+  margin-bottom: 1rem;
+}
+
+.tagline {
+  font-size: 1.5rem;
+  font-weight: 300;
+  color: var(--text-secondary);
+  letter-spacing: 0.1em;
+}
+
+.divider {
+  width: 60px;
+  height: 2px;
+  background: var(--accent);
+  margin: 2rem auto;
+}
+
+.description {
+  font-size: 1.1rem;
+  max-width: 600px;
+  margin: 0 auto;
+  color: var(--text-secondary);
+}
+
+.playerSection {
+  margin-top: -60px;
+  padding: 0 2rem;
+  position: relative;
+  z-index: 10;
+  max-width: 1400px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.playerGrid {
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 2rem;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .playerGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.features {
+  padding: 6rem 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 2rem;
+}
+
+.card {
+  padding: 2.5rem;
+  text-align: center;
+  transition: var(--transition);
+}
+
+.card:hover {
+  transform: translateY(-10px);
+  border-color: var(--accent);
+}
+
+.cardIcon {
+  width: 40px;
+  height: 40px;
+  color: var(--accent);
+  margin-bottom: 1.5rem;
+}
+
+.card h3 {
+  margin-bottom: 1rem;
+  font-size: 1.5rem;
+}
+
+.card p {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+}
+
+.schedule {
+  padding: 4rem 2rem 8rem;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.sectionTitle {
+  text-align: center;
+  font-size: 2.5rem;
+  margin-bottom: 3rem;
+  color: var(--accent);
+}
+
+.scheduleList {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.scheduleItem {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  padding: 1.5rem;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  border: 1px solid var(--glass-border);
+  transition: var(--transition);
+}
+
+.scheduleItem:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--accent);
+}
+
+.time {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--accent);
+  min-width: 60px;
+}
+
+.scheduleInfo h4 {
+  font-size: 1.2rem;
+  margin-bottom: 0.2rem;
+}
+
+.scheduleInfo p {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.footer {
+  padding: 4rem 2rem;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--glass-border);
+}
+
+.footerContent {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.footerLinks {
+  display: flex;
+  gap: 2rem;
+}
+
+.footerLinks a:hover {
+  color: var(--accent);
+}
+
+@media (max-width: 768px) {
+  .footerContent {
+    flex-direction: column;
+    gap: 2rem;
+    text-align: center;
+  }
+
+  .scheduleItem {
+    gap: 1rem;
+  }
+}
