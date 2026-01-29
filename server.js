@@ -22,12 +22,9 @@ app.prepare().then(() => {
   let isLive = false;
   let connectedUsers = 0;
   let adminSocketId = null;
-  let currentShowTitle = "Radio Orthodoxe";
+  let currentShowTitle = "RTO";
   let schedule = [
-    { time: "08:00", title: "Matines & Prières du Matin", host: "Père Jean" },
-    { time: "12:00", title: "Chants Liturgiques", host: "Chœur de la Cathédrale" },
-    { time: "18:00", title: "Vêpres de la Paix", host: "Père Marc" },
-    { time: "21:00", title: "Méditation Nocturne", host: "Sœur Marie" },
+    { time: "08:00", title: "Matines & Prières du Matin", host: "Père Seraphim" },
   ];
 
   io.on("connection", (socket) => {
@@ -51,15 +48,17 @@ app.prepare().then(() => {
     });
 
     socket.on("start-stream", (title) => {
-      currentShowTitle = title || "La Divine Liturgie";
+      isLive = true;
+      adminSocketId = socket.id;
+      currentShowTitle = title || "RTO";
+      io.emit("live-status", true);
       io.emit("current-show", currentShowTitle);
     });
 
     socket.on("stop-stream", () => {
       isLive = false;
       adminSocketId = null;
-      streamHeader = null;
-      currentShowTitle = "Radio Orthodoxe";
+      currentShowTitle = "RTO";
       io.emit("live-status", false);
       io.emit("current-show", currentShowTitle);
     });
@@ -80,8 +79,7 @@ app.prepare().then(() => {
       if (socket.id === adminSocketId) {
         isLive = false;
         adminSocketId = null;
-        streamHeader = null;
-        currentShowTitle = "Radio Orthodoxe";
+        currentShowTitle = "RTO";
         io.emit("live-status", false);
         io.emit("current-show", currentShowTitle);
       }

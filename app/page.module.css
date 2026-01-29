@@ -186,19 +186,29 @@
   font-size: 0.9rem;
 }
 
-.footerLinks {
-  display: flex;
-  gap: 2rem;
+.footerInfo p:first-child {
+  color: var(--text-primary);
+  font-weight: 600;
+  margin-bottom: 0.2rem;
 }
 
-.footerLinks a:hover {
+.footerContact {
+  text-align: right;
+}
+
+.footerContact a {
   color: var(--accent);
+  text-decoration: none;
 }
 
 @media (max-width: 768px) {
   .footerContent {
     flex-direction: column;
-    gap: 2rem;
+    gap: 1.5rem;
+    text-align: center;
+  }
+
+  .footerContact {
     text-align: center;
   }
 

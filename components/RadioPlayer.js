@@ -5,9 +5,8 @@ import styles from "./RadioPlayer.module.css";
 import { motion, AnimatePresence } from "framer-motion";
 import { io } from "socket.io-client";
 
-let socket;
-
 export default function RadioPlayer({ currentShow }) {
+  const socketRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLive, setIsLive] = useState(false);
   const [volume, setVolume] = useState(0.8);
@@ -15,8 +14,21 @@ export default function RadioPlayer({ currentShow }) {
   const audioContextRef = useRef(null);
   const nextStartTimeRef = useRef(0);
 
+  const isPlayingRef = useRef(isPlaying);
+  const isLiveRef = useRef(isLive);
+  const volumeRef = useRef(volume);
+  const isMutedRef = useRef(isMuted);
+
   useEffect(() => {
-    socket = io();
+    isPlayingRef.current = isPlaying;
+    isLiveRef.current = isLive;
+    volumeRef.current = volume;
+    isMutedRef.current = isMuted;
+  }, [isPlaying, isLive, volume, isMuted]);
+
+  useEffect(() => {
+    const socket = io();
+    socketRef.current = socket;
     
     socket.on("live-status", (status) => {
       setIsLive(status);
@@ -31,7 +43,7 @@ export default function RadioPlayer({ currentShow }) {
     });
 
     socket.on("audio-stream", async (data) => {
-      if (!isPlaying || !isLive) return;
+      if (!isPlayingRef.current || !isLiveRef.current) return;
 
       if (!audioContextRef.current) {
         audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 44100 });
@@ -39,7 +51,6 @@ export default function RadioPlayer({ currentShow }) {
       }
 
       const audioContext = audioContextRef.current;
-      // data est un ArrayBuffer contenant des Int16
       const int16Data = new Int16Array(data);
       const float32Data = new Float32Array(int16Data.length);
       
@@ -54,7 +65,7 @@ export default function RadioPlayer({ currentShow }) {
       source.buffer = audioBuffer;
       
       const gainNode = audioContext.createGain();
-      gainNode.gain.value = isMuted ? 0 : volume;
+      gainNode.gain.value = isMutedRef.current ? 0 : volumeRef.current;
       
       source.connect(gainNode);
       gainNode.connect(audioContext.destination);
@@ -65,9 +76,9 @@ export default function RadioPlayer({ currentShow }) {
     });
 
     return () => {
-      if (socket) socket.disconnect();
+      if (socketRef.current) socketRef.current.disconnect();
     };
-  }, [isPlaying, isLive, volume, isMuted]);
+  }, []);
 
   useEffect(() => {
     // Pas besoin de mettre à jour audioRef.volume ici car on utilise Web Audio API
@@ -101,7 +112,7 @@ export default function RadioPlayer({ currentShow }) {
           <div className={isLive ? "live-dot" : styles.offlineDot}></div>
           <span>{isLive ? "En Direct" : "Hors Ligne"}</span>
         </div>
-        <h3 className={styles.title}>{isLive ? currentShow : "Radio Orthodoxe"}</h3>
+        <h3 className={styles.title}>{isLive ? currentShow : "RTO"}</h3>
         <p className={styles.subtitle}>{isLive ? "En direct de la Cathédrale" : "La Voix de la Foi"}</p>
       </div>
 

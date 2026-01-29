@@ -1,14 +1,14 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "Radio Orthodoxe | La Voix de la Foi",
-  description: "Écoutez en direct Radio Orthodoxe, votre radio web personnelle pour la spiritualité et la paix.",
+  title: "RTO - Radio Toamasina Orthodoxe",
+  description: "La Voix de la Foi, l'Écho de la Paix - Radio Toamasina Orthodoxe",
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="fr">
-      <body>
+      <body suppressHydrationWarning>
         {children}
       </body>
     </html>

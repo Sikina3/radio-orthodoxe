@@ -72,11 +72,11 @@
     }
 
     .logo span {
-        font-size: 1.2rem;
+        font-size: 1.1rem;
     }
 
     .links {
-        gap: 1rem;
+        gap: 0.8rem;
     }
 
     .links a:not(.adminBtn) {
@@ -84,7 +84,7 @@
     }
 
     .adminBtn {
-        padding: 6px 12px;
-        font-size: 0.8rem;
+        padding: 6px 10px;
+        font-size: 0.75rem;
     }
 }

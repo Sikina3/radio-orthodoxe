@@ -6,9 +6,8 @@ import styles from "./admin.module.css";
 import { io } from "socket.io-client";
 import { useRouter } from "next/navigation";
 
-let socket;
-
 export default function AdminPage() {
+  const socketRef = useRef(null);
   const [isLive, setIsLive] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [stream, setStream] = useState(null);
@@ -35,7 +34,8 @@ export default function AdminPage() {
       return;
     }
 
-    socket = io();
+    const socket = io();
+    socketRef.current = socket;
 
     socket.on("user-count", (count) => {
       setAudienceCount(count);
@@ -59,7 +59,7 @@ export default function AdminPage() {
     getDevices();
 
     return () => {
-      if (socket) socket.disconnect();
+      if (socketRef.current) socketRef.current.disconnect();
     };
   }, []);
 
@@ -69,15 +69,56 @@ export default function AdminPage() {
         track.enabled = !isMuted;
       });
     }
+    
+    // Effet de "Ducking" : baisse la musique quand on parle
+    if (musicGainNodeRef.current && audioContextRef.current) {
+      const targetGain = isMuted ? 1.0 : 0.3; // 30% du volume si le micro est ouvert
+      const now = audioContextRef.current.currentTime;
+      musicGainNodeRef.current.gain.setTargetAtTime(targetGain, now, 0.2); // Transition fluide de 200ms
+    }
   }, [isMuted, stream]);
 
+  const [playlist, setPlaylist] = useState([]);
+  const playlistRef = useRef([]);
+  const [currentTrackIndex, setCurrentTrackIndex] = useState(-1);
+  const currentTrackIndexRef = useRef(-1);
+  const [isPlaylistPlaying, setIsPlaylistPlaying] = useState(false);
+  const isPlaylistPlayingRef = useRef(false);
+  const musicSourceRef = useRef(null);
+  const musicGainNodeRef = useRef(null);
+  
   const audioContextRef = useRef(null);
   const processorRef = useRef(null);
   const sourceRef = useRef(null);
+  const mixedOutputRef = useRef(null);
 
-  const toggleLive = async () => {
+  // Synchroniser les refs avec les états pour éviter les stale closures
+  useEffect(() => {
+    isPlaylistPlayingRef.current = isPlaylistPlaying;
+  }, [isPlaylistPlaying]);
+
+  useEffect(() => {
+    playlistRef.current = playlist;
+  }, [playlist]);
+
+  useEffect(() => {
+    currentTrackIndexRef.current = currentTrackIndex;
+  }, [currentTrackIndex]);
+
+  const handleFileUpload = (e) => {
+    const files = Array.from(e.target.files);
+    const newTracks = files.map(file => ({
+      name: file.name,
+      file: file,
+      url: URL.createObjectURL(file)
+    }));
+    setPlaylist(prev => [...prev, ...newTracks]);
+  };
+
+  const toggleLive = async (startMuted = false) => {
     if (!isLive) {
       try {
+        if (startMuted) setIsMuted(true);
         const audioStream = await navigator.mediaDevices.getUserMedia({ 
           audio: {
             deviceId: selectedDevice ? { exact: selectedDevice } : undefined,
@@ -93,49 +134,124 @@ export default function AdminPage() {
         const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 44100 });
         audioContextRef.current = audioContext;
 
-        const source = audioContext.createMediaStreamSource(audioStream);
-        sourceRef.current = source;
+        const mixedOutput = audioContext.createGain();
+        mixedOutputRef.current = mixedOutput;
 
-        // ScriptProcessorNode est déprécié mais plus simple à intégrer rapidement que AudioWorklet dans Next.js
+        const micSource = audioContext.createMediaStreamSource(audioStream);
+        sourceRef.current = micSource;
+
+        const highPass = audioContext.createBiquadFilter();
+        highPass.type = "highpass";
+        highPass.frequency.value = 100;
+
+        const eqPresence = audioContext.createBiquadFilter();
+        eqPresence.type = "peaking";
+        eqPresence.frequency.value = 3000;
+        eqPresence.gain.value = 3;
+
+        const compressor = audioContext.createDynamicsCompressor();
+        compressor.threshold.setValueAtTime(-24, audioContext.currentTime);
+        
+        micSource.connect(highPass);
+        highPass.connect(eqPresence);
+        eqPresence.connect(compressor);
+        compressor.connect(mixedOutput);
+
+        const musicGain = audioContext.createGain();
+        musicGainNodeRef.current = musicGain;
+        musicGain.connect(mixedOutput);
+
         const processor = audioContext.createScriptProcessor(4096, 1, 1);
         processorRef.current = processor;
 
         processor.onaudioprocess = (e) => {
-          if (isMuted) return;
-          
           const inputData = e.inputBuffer.getChannelData(0);
-          // Convertir Float32 en Int16 pour réduire la bande passante
           const int16Data = new Int16Array(inputData.length);
           for (let i = 0; i < inputData.length; i++) {
             int16Data[i] = Math.max(-1, Math.min(1, inputData[i])) * 0x7FFF;
           }
-          
-          if (socket) {
-            socket.emit('audio-data', int16Data.buffer);
-          }
+          if (socketRef.current) socketRef.current.emit('audio-data', int16Data.buffer);
         };
 
-        source.connect(processor);
+        mixedOutput.connect(processor);
         processor.connect(audioContext.destination);
 
-        if (socket) socket.emit("start-stream", showTitle);
+        if (socketRef.current) socketRef.current.emit("start-stream", showTitle);
       } catch (err) {
         console.error("Error accessing microphone:", err);
-        alert("Impossible d'accéder au microphone sélectionné.");
+        alert("Impossible d'accéder au microphone.");
       }
     } else {
-      if (processorRef.current) {
-        processorRef.current.disconnect();
-        processorRef.current.onaudioprocess = null;
+      stopAll();
+    }
+  };
+
+  const stopAll = () => {
+    setIsPlaylistPlaying(false);
+    isPlaylistPlayingRef.current = false;
+    if (processorRef.current) {
+      processorRef.current.disconnect();
+      processorRef.current.onaudioprocess = null;
+    }
+    if (sourceRef.current) sourceRef.current.disconnect();
+    if (musicSourceRef.current) {
+      musicSourceRef.current.onended = null;
+      musicSourceRef.current.stop();
+    }
+    if (audioContextRef.current) audioContextRef.current.close();
+    
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+    }
+    setIsLive(false);
+    if (socketRef.current) socketRef.current.emit("stop-stream");
+  };
+
+  const playNextTrack = async (indexOverride = -1) => {
+    const currentPlaylist = playlistRef.current;
+    if (currentPlaylist.length === 0) return;
+    if (!audioContextRef.current) return;
+    
+    let nextIndex;
+    if (indexOverride !== -1) {
+      nextIndex = indexOverride;
+    } else {
+      nextIndex = (currentTrackIndexRef.current + 1) % currentPlaylist.length;
+    }
+    
+    setCurrentTrackIndex(nextIndex);
+    currentTrackIndexRef.current = nextIndex;
+    
+    try {
+      const track = currentPlaylist[nextIndex];
+      const response = await fetch(track.url);
+      const arrayBuffer = await response.arrayBuffer();
+      const audioBuffer = await audioContextRef.current.decodeAudioData(arrayBuffer);
+
+      if (musicSourceRef.current) {
+        musicSourceRef.current.onended = null;
+        try { musicSourceRef.current.stop(); } catch(e) {}
       }
-      if (sourceRef.current) sourceRef.current.disconnect();
-      if (audioContextRef.current) audioContextRef.current.close();
+
+      const source = audioContextRef.current.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(musicGainNodeRef.current);
       
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
+      source.onended = () => {
+        if (isPlaylistPlayingRef.current) {
+          playNextTrack();
+        }
+      };
+
+      source.start(0);
+      musicSourceRef.current = source;
+      setIsPlaylistPlaying(true);
+    } catch (e) {
+      console.error("Error playing track:", e);
+      // En cas d'erreur, on tente de passer au suivant après un court délai
+      if (isPlaylistPlayingRef.current) {
+        setTimeout(() => playNextTrack(), 1000);
       }
-      setIsLive(false);
-      if (socket) socket.emit("stop-stream");
     }
   };
 
@@ -143,7 +259,7 @@ export default function AdminPage() {
     if (newScheduleItem.time && newScheduleItem.title) {
       const updated = [...schedule, newScheduleItem].sort((a, b) => a.time.localeCompare(b.time));
       setSchedule(updated);
-      if (socket) socket.emit("update-schedule", updated);
+      if (socketRef.current) socketRef.current.emit("update-schedule", updated);
       setNewScheduleItem({ time: "", title: "", host: "" });
     }
   };
@@ -151,7 +267,7 @@ export default function AdminPage() {
   const removeScheduleItem = (index) => {
     const updated = schedule.filter((_, i) => i !== index);
     setSchedule(updated);
-    if (socket) socket.emit("update-schedule", updated);
+    if (socketRef.current) socketRef.current.emit("update-schedule", updated);
   };
 
   const handleLogout = () => {
@@ -223,25 +339,59 @@ export default function AdminPage() {
                 <Music />
               </div>
               <div>
-                <h3>Bibliothèque Musicale</h3>
-                <p>{libraryFiles.length} fichiers disponibles</p>
+                <h3>Régie Musicale (Auto-DJ)</h3>
+                <p>{playlist.length} morceaux en attente</p>
               </div>
             </div>
-            <button className={styles.secondaryBtn} onClick={() => setShowLibrary(!showLibrary)}>
-              {showLibrary ? "Fermer" : "Ouvrir la Bibliothèque"}
-            </button>
             
-            {showLibrary && (
-              <div className={styles.libraryList}>
-                {libraryFiles.map((file, i) => (
-                  <div key={i} className={styles.libraryItem}>
-                    <span>{file.name}</span>
-                    <span className={file.duration}>{file.duration}</span>
-                  </div>
-                ))}
-                <button className={styles.addFileBtn}>+ Ajouter un fichier</button>
-              </div>
-            )}
+            <div className={styles.playlistControls}>
+              <input 
+                type="file" 
+                multiple 
+                accept="audio/*" 
+                onChange={handleFileUpload}
+                id="music-upload"
+                hidden
+              />
+              <label htmlFor="music-upload" className={styles.secondaryBtn}>
+                + Ajouter des MP3
+              </label>
+              
+              {playlist.length > 0 && (
+                <button 
+                  className={`${styles.playBtn} ${isPlaylistPlaying ? styles.stopBtn : styles.startBtn}`}
+                  onClick={async () => {
+                    if (!isLive) {
+                      await toggleLive(true); // Démarrer en Mute par défaut
+                      setTimeout(() => playNextTrack(), 500);
+                    } else {
+                      if (isPlaylistPlaying) {
+                        setIsPlaylistPlaying(false);
+                        if (musicSourceRef.current) {
+                          musicSourceRef.current.onended = null;
+                          musicSourceRef.current.stop();
+                        }
+                      } else {
+                        playNextTrack();
+                      }
+                    }
+                  }}
+                >
+                  {isPlaylistPlaying ? "Arrêter la Musique" : (!isLive ? "Démarrer Direct + Musique" : "Lancer la Playlist")}
+                </button>
+              )}
+            </div>
+            
+            <div className={styles.playlistScroll}>
+              {playlist.map((track, i) => (
+                <div key={i} className={`${styles.playlistItem} ${currentTrackIndex === i ? styles.activeTrack : ""}`}>
+                  <span className={styles.trackNumber}>{i + 1}</span>
+                  <span className={styles.trackName}>{track.name}</span>
+                  {currentTrackIndex === i && isPlaylistPlaying && <div className={styles.playingDot} />}
+                </div>
+              ))}
+              {playlist.length === 0 && <p className={styles.emptyHint}>Glissez vos fichiers ici pour créer une playlist</p>}
+            </div>
           </div>
 
           <div className={`${styles.card} glass`}>

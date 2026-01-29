@@ -4,9 +4,8 @@ import { Send, User } from "lucide-react";
 import styles from "./Chat.module.css";
 import { io } from "socket.io-client";
 
-let socket;
-
 export default function Chat() {
+  const socketRef = useRef(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [username, setUsername] = useState("");
@@ -14,14 +13,15 @@ export default function Chat() {
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
-    socket = io();
+    const socket = io();
+    socketRef.current = socket;
 
     socket.on("chat-message", (msg) => {
       setMessages((prev) => [...prev, msg]);
     });
 
     return () => {
-      if (socket) socket.disconnect();
+      if (socketRef.current) socketRef.current.disconnect();
     };
   }, []);
 
@@ -38,14 +38,14 @@ export default function Chat() {
 
   const sendMessage = (e) => {
     e.preventDefault();
-    if (input.trim() && isJoined) {
+    if (input.trim() && isJoined && socketRef.current) {
       const msg = {
         text: input,
         user: username,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         id: Math.random().toString(36).substr(2, 9)
       };
-      socket.emit("send-chat-message", msg);
+      socketRef.current.emit("send-chat-message", msg);
       setMessages((prev) => [...prev, msg]);
       setInput("");
     }
