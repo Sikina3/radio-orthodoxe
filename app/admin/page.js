@@ -131,7 +131,7 @@ export default function AdminPage() {
         setStream(audioStream);
         setIsLive(true);
 
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 44100 });
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 22050 });
         audioContextRef.current = audioContext;
 
         const mixedOutput = audioContext.createGain();
@@ -161,16 +161,22 @@ export default function AdminPage() {
         musicGainNodeRef.current = musicGain;
         musicGain.connect(mixedOutput);
 
-        const processor = audioContext.createScriptProcessor(4096, 1, 1);
+        // Augmenter la taille du buffer pour réduire la surcharge des paquets réseau
+        const processor = audioContext.createScriptProcessor(8192, 1, 1);
         processorRef.current = processor;
 
         processor.onaudioprocess = (e) => {
           const inputData = e.inputBuffer.getChannelData(0);
+          // Utiliser un buffer plus compact si possible, mais ici on reste en Int16
           const int16Data = new Int16Array(inputData.length);
           for (let i = 0; i < inputData.length; i++) {
-            int16Data[i] = Math.max(-1, Math.min(1, inputData[i])) * 0x7FFF;
+            // Clipping simple pour éviter les distorsions
+            const s = Math.max(-1, Math.min(1, inputData[i]));
+            int16Data[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
           }
-          if (socketRef.current) socketRef.current.emit('audio-data', int16Data.buffer);
+          if (socketRef.current && socketRef.current.connected) {
+            socketRef.current.emit('audio-data', int16Data.buffer);
+          }
         };
 
         mixedOutput.connect(processor);
@@ -418,7 +424,7 @@ export default function AdminPage() {
                 ))}
                 {audioDevices.length === 0 && <option>Aucun micro détecté</option>}
               </select>
-              <p className={styles.hint}>Qualité : 128kbps (Opus)</p>
+              <p className={styles.hint}>Qualité : 22kHz Mono PCM (~350kbps)</p>
             </div>
           </div>
         </div>

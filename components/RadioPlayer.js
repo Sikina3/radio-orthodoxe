@@ -46,11 +46,28 @@ export default function RadioPlayer({ currentShow }) {
       if (!isPlayingRef.current || !isLiveRef.current) return;
 
       if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 44100 });
-        nextStartTimeRef.current = audioContextRef.current.currentTime + 0.1;
+        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 22050 });
+        // Initial buffer: on commence à jouer avec un délai de 1.5 seconde
+        // Cela permet d'absorber les variations de l'internet (jitter)
+        nextStartTimeRef.current = audioContextRef.current.currentTime + 1.5;
+        console.log("Starting audio stream with 1.5s buffer");
       }
 
       const audioContext = audioContextRef.current;
+      
+      // Si on est "trop" en retard sur le temps réel (plus de 3 secondes), on resynchronise
+      if (nextStartTimeRef.current < audioContext.currentTime) {
+        console.log("Buffer underflow, resyncing...");
+        nextStartTimeRef.current = audioContext.currentTime + 0.5;
+      }
+      
+      // Si on est "trop" en avance (plus de 5 secondes), on attend
+      // (Peut arriver si l'admin envoie trop vite ou si on a eu une déconnexion)
+      if (nextStartTimeRef.current > audioContext.currentTime + 5) {
+        console.log("Buffer overflow, skipping forward...");
+        nextStartTimeRef.current = audioContext.currentTime + 1.5;
+      }
+
       const int16Data = new Int16Array(data);
       const float32Data = new Float32Array(int16Data.length);
       
@@ -58,7 +75,7 @@ export default function RadioPlayer({ currentShow }) {
         float32Data[i] = int16Data[i] / 0x7FFF;
       }
 
-      const audioBuffer = audioContext.createBuffer(1, float32Data.length, 44100);
+      const audioBuffer = audioContext.createBuffer(1, float32Data.length, 22050);
       audioBuffer.getChannelData(0).set(float32Data);
 
       const source = audioContext.createBufferSource();
@@ -70,7 +87,7 @@ export default function RadioPlayer({ currentShow }) {
       source.connect(gainNode);
       gainNode.connect(audioContext.destination);
 
-      const startTime = Math.max(nextStartTimeRef.current, audioContext.currentTime);
+      const startTime = nextStartTimeRef.current;
       source.start(startTime);
       nextStartTimeRef.current = startTime + audioBuffer.duration;
     });
