@@ -15,7 +15,7 @@ export default function Navbar() {
           <Link href="#programmes">Programmes</Link>
           <Link href="#a-propos">À Propos</Link>
           <Link href="#contact">Contact</Link>
-          <Link href="/admin" className={styles.adminBtn}>Admin</Link>
+
         </div>
       </div>
     </nav>
