@@ -131,8 +131,9 @@ export default function AdminPage() {
         setStream(audioStream);
         setIsLive(true);
 
-        // Qualité : 16kHz Mono PCM (~256kbps) pour un compromis entre clarté (voix du prêtre) et stabilité réseau
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+        // Qualité : 12kHz Mono PCM (~192kbps / 24KB/s)
+        // C'est le réglage "sécurité" pour que ça passe même quand votre box descend à 30-40 KB/s.
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 12000 });
         audioContextRef.current = audioContext;
 
         const mixedOutput = audioContext.createGain();
@@ -425,7 +426,7 @@ export default function AdminPage() {
                 ))}
                 {audioDevices.length === 0 && <option>Aucun micro détecté</option>}
               </select>
-              <p className={styles.hint}>Qualité : 16kHz Mono PCM (~256kbps)</p>
+              <p className={styles.hint}>Qualité : 12kHz Mono PCM (~192kbps)</p>
             </div>
           </div>
         </div>

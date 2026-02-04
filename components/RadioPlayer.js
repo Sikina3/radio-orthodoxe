@@ -17,9 +17,9 @@ export default function RadioPlayer({ currentShow }) {
   const queueRef = useRef([]);
   const queuedDurationRef = useRef(0);
   const schedulerIntervalRef = useRef(null);
-  const INITIAL_BUFFER_SEC = 6.0; // Augmenté pour plus de stabilité sur connexions lentes
-  const MAX_BUFFER_SEC = 15.0; // Un peu plus de marge
-  const SAMPLE_RATE = 16000;
+  const INITIAL_BUFFER_SEC = 8.0; // Encore augmenté pour les débits à 30KB/s
+  const MAX_BUFFER_SEC = 20.0; // Plus de marge pour respirer
+  const SAMPLE_RATE = 12000;
 
   const isPlayingRef = useRef(isPlaying);
   const isLiveRef = useRef(isLive);
@@ -119,7 +119,7 @@ export default function RadioPlayer({ currentShow }) {
         }
 
         // Schedule while we have queued data and we are within a reasonable lookahead
-        const LOOKAHEAD = 6.0;
+        const LOOKAHEAD = 8.0;
         while (
           queueRef.current.length > 0 &&
           nextStartTimeRef.current < now + LOOKAHEAD
