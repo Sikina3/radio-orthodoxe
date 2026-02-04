@@ -131,7 +131,8 @@ export default function AdminPage() {
         setStream(audioStream);
         setIsLive(true);
 
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 22050 });
+        // Qualité : 16kHz Mono PCM (~256kbps) pour un compromis entre clarté (voix du prêtre) et stabilité réseau
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
         audioContextRef.current = audioContext;
 
         const mixedOutput = audioContext.createGain();
@@ -424,7 +425,7 @@ export default function AdminPage() {
                 ))}
                 {audioDevices.length === 0 && <option>Aucun micro détecté</option>}
               </select>
-              <p className={styles.hint}>Qualité : 22kHz Mono PCM (~350kbps)</p>
+              <p className={styles.hint}>Qualité : 16kHz Mono PCM (~256kbps)</p>
             </div>
           </div>
         </div>
